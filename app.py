@@ -87,10 +87,17 @@ def edit_msg(message, say):
 		time.sleep(0.5)
 
 
+@app.event("message")
+def handle_message_events(ack):
+	# Simply acknowledge to stop the "unhandled request" warning
+    ack()
+
 @app.command("/badapple")
 def handle_badapple_command(ack, say, command):
 	# Acknowledge the command within 3 seconds
 	ack()
+
+	client = app.client
 
 	# Extract info from the command payload
 	user_id = command["user_id"]
@@ -104,16 +111,7 @@ def handle_badapple_command(ack, say, command):
 		width = 80
 		height = 24
 
-	client = app.client
-	client.chat_postMessage(
-		channel="stunty",
-		text="Starting up"
-	)
-
-	print_frame = client.chat_postMessage(
-		channel="stunty",
-		text="Loading Frame"
-	)
+	print_frame = say(text="```Loading Frame```")
 
 	message_ts = print_frame["ts"]
 	channel_id = print_frame["channel"]
@@ -127,14 +125,12 @@ def handle_badapple_command(ack, say, command):
 		frame_vals = frame_to_gs(frame)
 		frame = frame_to_ascii(frame_vals, lut)
 		frame = '\n'.join(frame[i:i + width] for i in range(0, len(frame), width))
-
-
 		client.chat_update(
 			channel=channel_id,
 			ts=message_ts,
 			text=f"```{frame}```"
 		)
-		time.sleep(0.5)
+		time.sleep(1/2)
 
 # Start your app
 if __name__ == "__main__":

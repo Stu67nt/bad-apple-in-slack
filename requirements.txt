@@ -1,1 +1,4 @@
 slack-bolt
+numpy
+decord
+dotenv
