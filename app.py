@@ -5,8 +5,7 @@ from dotenv import load_dotenv
 import random
 import time
 import numpy
-from decord import VideoReader, AudioReader
-from decord import cpu
+import cv2 as cv
 
 def frame_to_gs(frame):
 	"""
@@ -32,74 +31,76 @@ def frame_to_ascii(frame, colourmap):
 	# frame is stiill in raw bytes so we need to decode it
 	return frame.tobytes().decode()
 
-def create_video_obj(video_file: str, w, h):
-	"""
-	Converts a video file in a processable video object
-	:param video_file: File path for video file either relevative or exact.
-	:return: decord VideoReader Object
-	"""
-	with open(video_file, 'rb') as f:
-		vr = VideoReader(f, width=w, height=h)
-		f.close()
+def create_video_obj(video_file: str):
+	vr = cv.VideoCapture(video_file)
+	vr.set(cv.CAP_PROP_FPS, 2)
 	return vr
 
-# Initializes your app with your bot token and socket mode handler
-# Load variables from .env
 load_dotenv()
 
-# Now os.environ.get will find your token
 app = App(token=os.environ.get("SLACK_BOT_TOKEN"))
-
-@app.message("generate bad apple")
-def edit_msg(message, say):
-	client = app.client
-	width = 80
-	height = 24
-	client.chat_postMessage(
-		channel="stunty",
-		text="Starting up"
-	)
-
-	print_frame = client.chat_postMessage(
-		channel="stunty",
-		text="Loading Frame"
-	)
-
-	message_ts = print_frame["ts"]
-	channel_id = print_frame["channel"]
-
-	ASCII_COLOURMAP = r"%@#*+=-:. "[::-1]
-	lut = numpy.frombuffer(ASCII_COLOURMAP.encode(), dtype=numpy.uint8)
-
-	video_obj = create_video_obj("BadApple.mp4", w=width, h=height)
-	for i in range(0, len(video_obj), 15):
-		frame = video_obj[i].asnumpy()
-		frame_vals = frame_to_gs(frame)
-		frame = frame_to_ascii(frame_vals, lut)
-		frame = '\n'.join(frame[i:i + width] for i in range(0, len(frame), width))
-
-
-		client.chat_update(
-			channel=channel_id,
-			ts=message_ts,
-			text=f"```{frame}```"
-		)
-		time.sleep(0.5)
-
 
 @app.event("message")
 def handle_message_events(ack):
-	# Simply acknowledge to stop the "unhandled request" warning
-    ack()
+	pass
+
+@app.command("/generatecat")
+def handle_cat_gen_command(ack, say, command):
+	# Acknowledge the command within 3 seconds
+	t1 = time.time()
+	ack()
+
+
+	print("recieved!")
+	client = app.client
+
+
+	user_id = command["user_id"]
+	nums = command.get("text", "")
+
+	try:
+		width, height = nums.split()
+		width = int(width)
+		height = int(height)
+	except Exception:
+		width = 80
+		height = 24
+
+	mypath = "cat"
+	onlyfiles = [f for f in os.listdir(mypath) if os.path.isfile(os.path.join(mypath, f))]
+	file_i = random.randint(0,len(onlyfiles)-1)
+	img = cv.imread(f"cat/{onlyfiles[file_i]}")
+	img = cv.resize(img, (width, height))
+
+	ASCII_COLOURMAP = r"@%#*+=-:. "[::-1]
+	lut = numpy.frombuffer(ASCII_COLOURMAP.encode(), dtype=numpy.uint8)
+	img_vals = frame_to_gs(img)
+	img = frame_to_ascii(img_vals, lut)
+	img = [(img[i:i+width]) for i in range(0, len(img), width)]
+	i = 0
+	length = 0
+	msg = ""
+	try:
+		while i < len(img):
+			length += width
+			if length > 3000:
+				say(text=f"```{msg}```")
+				msg = ""
+				length = 0
+			msg += "\n" + img[i]
+			i += 1
+		say(text=f"```{msg}```")
+
+	except Exception as e:
+		say(text=f"```{e}```")
+	print(time.time() - t1)
 
 @app.command("/badapple")
 def handle_badapple_command(ack, say, command):
-	# Acknowledge the command within 3 seconds
 	ack()
 
 	client = app.client
 
-	# Extract info from the command payload
 	user_id = command["user_id"]
 	nums = command.get("text", "")
 
@@ -116,21 +117,31 @@ def handle_badapple_command(ack, say, command):
 	message_ts = print_frame["ts"]
 	channel_id = print_frame["channel"]
 
-	ASCII_COLOURMAP = r"%@#*+=-:. "[::-1]
+	ASCII_COLOURMAP = r"%@#*+=-:."[::-1]
 	lut = numpy.frombuffer(ASCII_COLOURMAP.encode(), dtype=numpy.uint8)
 
-	video_obj = create_video_obj("BadApple.mp4", w=width, h=height)
-	for i in range(0, len(video_obj), 15):
-		frame = video_obj[i].asnumpy()
+	video_obj = create_video_obj("BadApple_1fps.mp4")
+	frame_count = int(video_obj.get(cv.CAP_PROP_FRAME_COUNT))
+	while True:
+		ret, frame = video_obj.read()
+
+		if not ret:
+			break
+
+		frame = cv.resize(frame, (width, height))
+		frame = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+
 		frame_vals = frame_to_gs(frame)
 		frame = frame_to_ascii(frame_vals, lut)
 		frame = '\n'.join(frame[i:i + width] for i in range(0, len(frame), width))
+
 		client.chat_update(
 			channel=channel_id,
 			ts=message_ts,
 			text=f"```{frame}```"
 		)
-		time.sleep(1/2)
+		time.sleep(1)
+
 
 # Start your app
 if __name__ == "__main__":
