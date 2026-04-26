@@ -14,3 +14,6 @@ To customise the resolution, add the extra arguments [width] [height] to the end
 zoom out (on Slack web) or have a big monitor.
 
 To generate slop videos of a thread, either ping @stunty and say slopify like "@stunty pls slopify this thread" or in a main channel run the command /slopify [url]. If the bot is not in the channel where the thread you want to slopify is, it will not work and return an error message. Make sure to add it to the channel where the thread you want to slopify is first.
+
+### AI
+I used gemini and claude to help me with regex for filtering some inputs and to help with getting and sending messages with the slack api. 
